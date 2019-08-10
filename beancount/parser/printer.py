@@ -49,7 +49,7 @@ def align_position_strings(strings):
     max_before = 0
     # Maximum length after the alignment character.
     max_after = 0
-    # Maxmimum length of unknown strings.
+    # Maximum length of unknown strings.
     max_unknown = 0
 
     string_items = []
@@ -132,13 +132,15 @@ class EntryPrinter:
             if key not in self.META_IGNORE:
                 value_str = None
                 if isinstance(value, str):
-                    value_str = '"{}"'.format(value)
+                    value_str = '"{}"'.format(misc_utils.escape_string(value))
                 elif isinstance(value, (Decimal, datetime.date, amount.Amount)):
                     value_str = str(value)
                 elif isinstance(value, bool):
                     value_str = 'TRUE' if value else 'FALSE'
                 elif isinstance(value, (dict, inventory.Inventory)):
                     pass # Ignore dicts, don't print them out.
+                elif value is None:
+                    value_str = ''  # Render null metadata as empty, on purpose.
                 else:
                     raise ValueError("Unexpected value: '{!r}'".format(value))
                 if value_str is not None:
@@ -193,7 +195,7 @@ class EntryPrinter:
                 if posting.meta:
                     self.write_metadata(posting.meta, oss, '    ')
         else:
-            fmt_str = "  {{:{0}}}  {{:{1}}}\n".format(width_account, width_position)
+            fmt_str = "  {{:{0}}}  {{:{1}}}\n".format(width_account, max(1, width_position))
             fmt = fmt_str.format
             for posting, account, position_str in zip(entry.postings,
                                                       strs_account,
@@ -215,7 +217,7 @@ class EntryPrinter:
             position_str: A string, the rendered position string.
             weight_str: A string, the rendered weight of the posting.
         """
-        # Render a string of the flag and hte account.
+        # Render a string of the flag and the account.
         flag = '{} '.format(posting.flag) if posting.flag else ''
         flag_account = flag + posting.account
 

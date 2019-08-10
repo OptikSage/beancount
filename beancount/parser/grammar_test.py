@@ -23,7 +23,6 @@ from beancount.parser import lexer
 from beancount.core import data
 from beancount.core import amount
 from beancount.utils import test_utils
-from beancount.parser import grammar
 from beancount.parser import cmptest
 
 
@@ -1254,7 +1253,7 @@ class TestTotalsAndSigns(unittest.TestCase):
             Assets:Investments:MSFT      0 MSFT {200.00 USD}
             Assets:Investments:Cash      0 USD
         """
-        pass # Should produce no errors.
+        # Should produce no errors.
 
     @parser.parse_doc(expect_errors=False)
     def test_zero_cost(self, entries, errors, _):
@@ -1263,7 +1262,7 @@ class TestTotalsAndSigns(unittest.TestCase):
             Assets:Investments:MSFT      -10 MSFT {0.00 USD}
             Assets:Investments:Cash     0.00 USD
         """
-        pass # Should produce no errors.
+        # Should produce no errors.
 
     @parser.parse_doc(expect_errors=False)
     def test_cost_negative(self, entries, errors, _):
@@ -1272,7 +1271,7 @@ class TestTotalsAndSigns(unittest.TestCase):
             Assets:Investments:MSFT      -10 MSFT {-200.00 USD}
             Assets:Investments:Cash  2000.00 USD
         """
-        pass # Should produce no errors.
+        # Should produce no errors.
         # Note: This error is caught only at booking time.
 
     @parser.parse_doc()
@@ -1320,7 +1319,7 @@ class TestTotalsAndSigns(unittest.TestCase):
             Assets:Investments:MSFT      -10 MSFT {{-200.00 USD}}
             Assets:Investments:Cash   200.00 USD
         """
-        pass # Should produce no errors.
+        # Should produce no errors.
         # Note: This error is caught only at booking time.
 
     @parser.parse_doc(expect_errors=True)
@@ -1362,71 +1361,6 @@ class TestTotalsAndSigns(unittest.TestCase):
             Assets:Investments:Cash   20000.00 USD
         """
         self.assertRegex(errors[0].message, 'Negative.*allowed')
-
-
-class TestAllowNegativePrices(unittest.TestCase):
-
-    def setUp(self):
-        self.__allow_negative_prices__ = grammar.__allow_negative_prices__
-        grammar.__allow_negative_prices__ = True
-
-    def tearDown(self):
-        grammar.__allow_negative_prices__ = self.__allow_negative_prices__
-
-    @parser.parse_doc()
-    def test_total_cost(self, entries, errors, _):
-        """
-          2013-05-18 * ""
-            Assets:Investments:MSFT      10 MSFT {{2,000 USD}}
-            Assets:Investments:Cash  -20000 USD
-
-          2013-05-18 * ""
-            Assets:Investments:MSFT      10 MSFT {{2000 USD, 2014-02-25}}
-            Assets:Investments:Cash  -20000 USD
-
-          2013-06-01 * ""
-            Assets:Investments:MSFT      -10 MSFT {{2,000 USD}}
-            Assets:Investments:Cash    20000 USD
-        """
-        self.assertFalse(errors)
-        for entry in entries:
-            posting = entry.postings[0]
-            self.assertEqual(D('2000'), posting.cost.number_total)
-            self.assertEqual('USD', posting.cost.currency)
-            self.assertEqual(None, posting.price)
-
-    @parser.parse_doc()
-    def test_price_negative(self, entries, errors, _):
-        """
-          2013-05-18 * ""
-            Assets:Investments:MSFT      -10 MSFT @ -200.00 USD
-            Assets:Investments:Cash  2000.00 USD
-        """
-        posting = entries[0].postings[0]
-        self.assertEqual(amount.from_string('-200 USD'), posting.price)
-        self.assertEqual(None, posting.cost)
-
-    @parser.parse_doc()
-    def test_total_price_negative(self, entries, errors, _):
-        """
-          2013-05-18 * ""
-            Assets:Investments:MSFT        -10 MSFT @@ 2000.00 USD
-            Assets:Investments:Cash   20000.00 USD
-        """
-        posting = entries[0].postings[0]
-        self.assertEqual(amount.from_string('-200 USD'), posting.price)
-        self.assertEqual(None, posting.cost)
-
-    @parser.parse_doc()
-    def test_total_price_inverted(self, entries, errors, _):
-        """
-          2013-05-18 * ""
-            Assets:Investments:MSFT         10 MSFT @@ -2000.00 USD
-            Assets:Investments:Cash  -20000.00 USD
-        """
-        posting = entries[0].postings[0]
-        self.assertEqual(amount.from_string('-200 USD'), posting.price)
-        self.assertEqual(None, posting.cost)
 
 
 class TestBalance(unittest.TestCase):
@@ -1834,7 +1768,7 @@ class TestLexerAndParserErrors(cmptest.TestCase):
       build_grammar_error() to register the error. Error recovery proceeds
       similarly to what was described previously.
 
-    * Grammar Builder Exception: A grammar rule is reduced succesfully, a
+    * Grammar Builder Exception: A grammar rule is reduced successfully, a
       builder method is invoked and raises a Python exception. A macro in the
       code that invokes this method is used to catch this error and calls
       build_grammar_error_from_exception() to register an error and makes the

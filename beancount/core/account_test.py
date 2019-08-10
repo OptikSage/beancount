@@ -52,7 +52,7 @@ class TmpFilesTestBase(unittest.TestCase):
                 parent_dir = path.dirname(abs_filename)
                 if not path.exists(parent_dir):
                     os.makedirs(parent_dir)
-                open(abs_filename, 'w')
+                with open(abs_filename, 'w'): pass
         return tempdir, root
 
 
@@ -150,6 +150,7 @@ class TestAccount(unittest.TestCase):
         self.assertTrue(is_child('Assets:Bank:Checking'))
         self.assertTrue(is_child('Assets:Bank:Checking:SubAccount'))
         self.assertFalse(is_child('Assets:Bank:CheckingOld'))
+        self.assertFalse(is_child('Assets:Bank:Checking-Old'))
 
     def test_parents(self):
         iterator = account.parents('Assets:Bank:Checking')

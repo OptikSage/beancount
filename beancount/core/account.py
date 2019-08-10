@@ -102,7 +102,7 @@ def leaf(account_name):
 def sans_root(account_name):
     """Get the name of the account without the root.
 
-    For example, an in put of 'Assets:BofA:Checking' will produce 'BofA:Checking'.
+    For example, an input of 'Assets:BofA:Checking' will produce 'BofA:Checking'.
 
     Args:
       account_name: A string, the name of the account whose leaf name to return.
@@ -137,7 +137,7 @@ def has_component(account_name, component):
       A boolean, true if the component is in the account. Note that a component
       name must be whole, that is 'NY' is not in Expenses:Taxes:StateNY'.
     """
-    return re.search('(^|:){}(:|$)'.format(component), account_name)
+    return bool(re.search('(^|:){}(:|$)'.format(component), account_name))
 
 
 def commonprefix(accounts):
@@ -186,7 +186,7 @@ def parent_matcher(account_name):
       A callable, which, when called, will return true if the given account is a
       child of 'account_name'.
     """
-    return re.compile(r'{}\b'.format(re.escape(account_name))).match
+    return re.compile(r'{}($|{})'.format(re.escape(account_name), sep)).match
 
 
 def parents(account_name):

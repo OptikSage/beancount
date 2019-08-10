@@ -22,10 +22,6 @@ from beancount.core.amount import CURRENCY_RE
 from beancount.core.display_context import DEFAULT_FORMATTER
 
 
-# Disable lint errors for namedtuples declared here.
-# pylint: disable=invalid-name
-
-
 # A variant of Amount that also includes a date and a label.
 #
 # Attributes:
@@ -237,7 +233,7 @@ class Position(_Position):
         return (order_units, cost_number, cost_currency, self.units.number)
 
     def __lt__(self, other):
-        """A least-than comparison operator for positions.
+        """A less-than comparison operator for positions.
 
         Args:
           other: Another instance of Position.
@@ -268,7 +264,7 @@ class Position(_Position):
         """Get a copy of this position but with a negative number.
 
         Returns:
-          An instance of Position which represents the inserse of this Position.
+          An instance of Position which represents the inverse of this Position.
         """
         # Note: We use Decimal() for efficiency.
         return Position(-self.units, self.cost)
@@ -335,8 +331,11 @@ class Position(_Position):
             for expr in expressions:
 
                 # Match a compound number.
-                match = re.match(r'({})\s*(?:#\s*({}))?\s+({})$'.format(
-                    NUMBER_RE, NUMBER_RE, CURRENCY_RE), expr)
+                match = re.match(
+                    r'({NUMBER_RE})\s*(?:#\s*({NUMBER_RE}))?\s+({CURRENCY_RE})$'
+                    .format(NUMBER_RE=NUMBER_RE, CURRENCY_RE=CURRENCY_RE),
+                    expr
+                )
                 if match:
                     per_number, total_number, cost_currency = match.group(1, 2, 3)
                     per_number = D(per_number) if per_number else ZERO

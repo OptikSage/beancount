@@ -85,7 +85,8 @@ class ImporterProtocol:
         """Return an account associated with the given file.
 
         Note: If you don't implement this method you won't be able to move the
-        files into its preservation hierarchy; the bean-file command won't work.
+        files into its preservation hierarchy; the bean-file command won't
+        work.
 
         Also, normally the returned account is not a function of the input
         file--just of the importer--but it is provided anyhow.
@@ -99,9 +100,10 @@ class ImporterProtocol:
     def file_name(self, file):
         """A filter that optionally renames a file before filing.
 
-        This is used to make tidy filenames for filed/stored document files. The
-        default implementation just returns the same filename. Note that a
-        simple RELATIVE filename must be returned, not an absolute filename.
+        This is used to make tidy filenames for filed/stored document files. If
+        you don't implement this and return None, the same filename is used.
+        Note that if you return a filename, a simple, RELATIVE filename must be
+        returned, not an absolute filename.
 
         Args:
           file: A cache.FileMemo instance.

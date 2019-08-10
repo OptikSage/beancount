@@ -33,12 +33,15 @@ else:
         from setuptools import setup, Extension
         has_setuptools = True
         setup_extra_kwargs.update(install_requires = [
+            # Testing support now uses the pytest module.
+            'pytest',
+
             # This is required to parse dates from command-line options in a
             # loose, accepting format. Note that we use dateutil for timezone
             # database definitions as well, although it is inferior to pytz, but
             # because it can use the OS timezone database in the Windows
             # registry. See this article for context:
-            # http://www.assert.cc/2014/05/25/which-python-time-zone-library.html
+            # https://www.assert.cc/2014/05/25/which-python-time-zone-library.html
             # However, for creating offset timezones, we use the datetime.timezone
             # helper class because it is built-in.
             # Where this matters is for price source fetchers.
@@ -98,7 +101,7 @@ else:
         #
         # If you think I'm a lunatic, fix it and make sure you can make this
         # command succeed:
-        #   nosetests3 -s beancount/scripts/setup_test.py
+        #   pytest -s beancount/scripts/setup_test.py
         #
     except ImportError:
         warnings.warn("Setuptools not installed; falling back on distutils. "
@@ -170,11 +173,11 @@ def get_hg_changeset():
     """Get the Mercurial changeset id."""
     try:
         output = subprocess.check_output(
-            ['hg', 'parent', '--template', '{node} {date(date, "%s")}'], shell=False)
-        vc_changeset, vc_timestamp = output.decode('utf-8').split()
+            ['hg', 'parent', '--template', '{node} {date|hgdate}'], shell=False)
+        vc_changeset, vc_timestamp = output.decode('utf-8').split()[:2]
         vc_changeset = 'hg:{}'.format(vc_changeset)
         return vc_changeset, vc_timestamp
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except (subprocess.CalledProcessError, FileNotFoundError, PermissionError):
         return None
 
 def get_git_changeset():
@@ -189,7 +192,7 @@ def get_git_changeset():
             return vc_changeset, vc_timestamp
         else:
             return None
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except (subprocess.CalledProcessError, FileNotFoundError, PermissionError):
         return None
 
 # Get the changeset to bake into the binary.
@@ -227,7 +230,7 @@ setup(
     author="Martin Blais",
     author_email="blais@furius.ca",
     url="http://furius.ca/beancount",
-    download_url="http://bitbucket.org/blais/beancount",
+    download_url="https://bitbucket.org/blais/beancount",
 
     packages = [
         'beancount',
@@ -243,6 +246,7 @@ setup(
         'beancount.web',
         'beancount.ingest',
         'beancount.ingest.importers',
+        'beancount.ingest.importers.mixins',
         'beancount.utils',
         'beancount.tools',
     ],
@@ -286,7 +290,7 @@ setup(
 # Development setup requires two tools IFF you need to change the grammar:
 #
 # - flex-2.6.4
-# - bison-3.0.4
+# - bison-3.0.5
 #
 # These versions are related to what's on a recent Ubuntu. If you don't change
 # the grammar nor the tokenizer, the C sources are checked in so you won't need

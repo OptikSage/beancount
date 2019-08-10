@@ -424,6 +424,23 @@ class TestLexer(unittest.TestCase):
         ], tokens)
         self.assertFalse(errors)
 
+    @lex_tokens
+    def test_null_true_false(self, tokens, errors):
+        '''
+        TRUE FALSE NULL
+        '''
+        # Note that this test contains an _actual_ newline, not an escape one as
+        # in the previous test. This should allow us to parse multiline strings.
+        self.assertEqual([
+            ('EOL', 2, '\n', None),
+            ('BOOL', 2, 'TRUE', None),
+            ('BOOL', 2, 'FALSE', None),
+            ('NULL', 2, 'NULL', None),
+            ('EOL', 3, '\n', None),
+            ('EOL', 3, '\x00', None),
+        ], tokens)
+        self.assertFalse(errors)
+
 
 class TestIgnoredLines(unittest.TestCase):
 
@@ -489,6 +506,25 @@ class TestIgnoredLines(unittest.TestCase):
             ('SKIPPED', 2, '*', None),
             ('EOL', 3, '\n', None),
             ('EOL', 3, '\x00', None),
+        ], tokens)
+        self.assertFalse(errors)
+
+    @lex_tokens
+    def test_ignored__org_mode_drawer(self, tokens, errors):
+        """
+        :PROPERTIES:
+        :this: is an org-mode property drawer
+        :END:
+        """
+        self.assertEqual([
+            ('EOL', 2, '\n', None),
+            ('SKIPPED', 2, ':', None),
+            ('EOL', 3, '\n', None),
+            ('SKIPPED', 3, ':', None),
+            ('EOL', 4, '\n', None),
+            ('SKIPPED', 4, ':', None),
+            ('EOL', 5, '\n', None),
+            ('EOL', 5, '\x00', None),
         ], tokens)
         self.assertFalse(errors)
 
@@ -564,7 +600,7 @@ class TestLexerErrors(unittest.TestCase):
         # This modification is similar to what the options do, and will cause a
         # ValueError exception to be raised in the lexer.
         builder.account_regexp = re.compile('(Assets|Liabilities|Equity)'
-                                            '(:[A-Z][A-Za-z0-9\-]*)*$')
+                                            '(:[A-Z][A-Za-z0-9-]*)*$')
         tokens = list(lexer.lex_iter_string(textwrap.dedent(test_input), builder))
         self.assertEqual([('EOL', 2, '\n', None),
                           ('LEX_ERROR', 2, 'Invalid:Something', None),

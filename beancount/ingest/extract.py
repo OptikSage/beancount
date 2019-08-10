@@ -89,8 +89,9 @@ def find_duplicate_entries(new_entries_list, existing_entries):
     """Flag potentially duplicate entries.
 
     Args:
-      new_entries_list: A list of lists of imported entries, one for each
-        importer.
+      new_entries_list: A list of pairs of (key, lists of imported entries), one
+        for each importer. The key identifies the filename and/or importer that
+        yielded those new entries.
       existing_entries: A list of previously existing entries from the target
         ledger.
     Returns:
@@ -98,7 +99,7 @@ def find_duplicate_entries(new_entries_list, existing_entries):
       potentially with modified metadata to indicate those which are duplicated.
     """
     mod_entries_list = []
-    for new_entries in new_entries_list:
+    for key, new_entries in new_entries_list:
         # Find similar entries against the existing ledger only.
         duplicate_pairs = similar.find_similar_entries(new_entries, existing_entries)
 
@@ -111,15 +112,14 @@ def find_duplicate_entries(new_entries_list, existing_entries):
                 marked_meta[DUPLICATE_META] = True
                 entry = entry._replace(meta=marked_meta)
             mod_entries.append(entry)
-        mod_entries_list.append(mod_entries)
+        mod_entries_list.append((key, mod_entries))
     return mod_entries_list
 
 
-def print_extracted_entries(importer, entries, file):
-    """Print the entries for the given importer.
+def print_extracted_entries(entries, file):
+    """Print a list of entries.
 
     Args:
-      importer: An importer object that matched the file.
       entries: A list of extracted entries.
       file: A file object to write to.
     """
@@ -149,7 +149,8 @@ def extract(importer_config,
             entries=None,
             options_map=None,
             mindate=None,
-            ascending=True):
+            ascending=True,
+            detect_duplicates_func=None):
     """Given an importer configuration, search for files that can be imported in the
     list of files or directories, run the signature checks on them, and if it
     succeeds, run the importer on the file.
@@ -167,6 +168,10 @@ def extract(importer_config,
       mindate: Optional minimum date to output transactions for.
       ascending: A boolean, true to print entries in ascending order, false if
         descending is desired.
+      detect_duplicates_func: An optional function which accepts a list of
+        lists of imported entries and a list of entries already existing in
+        the user's ledger. See function find_duplicate_entries(), which is the
+        default implementation for this.
     """
     allow_none_for_tags_and_links = (
         options_map and options_map["allow_deprecated_none_for_tags_and_links"])
@@ -174,8 +179,7 @@ def extract(importer_config,
     # Run all the importers and gather their result sets.
     new_entries_list = []
     for filename, importers in identify.find_imports(importer_config,
-                                                     files_or_directories,
-                                                     output):
+                                                     files_or_directories):
         for importer in importers:
             # Import and process the file.
             try:
@@ -185,7 +189,7 @@ def extract(importer_config,
                     existing_entries=entries,
                     min_date=mindate,
                     allow_none_for_tags_and_links=allow_none_for_tags_and_links)
-                new_entries_list.append(new_entries)
+                new_entries_list.append((filename, new_entries))
             except Exception as exc:
                 logging.error("Importer %s.extract() raised an unexpected error: %s",
                               importer.name(), exc)
@@ -196,17 +200,22 @@ def extract(importer_config,
     # list of existing ones, or against each other. A single call to this
     # function is made on purpose, so that the function be able to merge
     # entries.
-    new_entries_list = find_duplicate_entries(
-        new_entries_list, entries)
+    if detect_duplicates_func is None:
+        detect_duplicates_func = find_duplicate_entries
+    new_entries_list = detect_duplicates_func(new_entries_list, entries)
     assert isinstance(new_entries_list, list)
-    assert all(isinstance(new_entries, list) for new_entries in new_entries_list)
+    assert all(isinstance(new_entries, tuple) for new_entries in new_entries_list)
+    assert all(isinstance(new_entries[0], str) for new_entries in new_entries_list)
+    assert all(isinstance(new_entries[1], list) for new_entries in new_entries_list)
 
     # Print out the results.
     output.write(HEADER)
-    for new_entries in new_entries_list:
+    for key, new_entries in new_entries_list:
+        output.write(identify.SECTION.format(key))
+        output.write('\n')
         if not ascending:
             new_entries.reverse()
-        print_extracted_entries(importer, new_entries, output)
+        print_extracted_entries(new_entries, output)
 
 
 DESCRIPTION = "Extract transactions from downloads"
@@ -226,7 +235,7 @@ def add_arguments(parser):
                         help='Write out the entries in descending order')
 
 
-def run(args, _, importers_list, files_or_directories):
+def run(args, _, importers_list, files_or_directories, detect_duplicates_func=None):
     """Run the subcommand."""
 
     # Load the ledger, if one is specified.
@@ -236,8 +245,11 @@ def run(args, _, importers_list, files_or_directories):
         entries, options_map = None, None
 
     extract(importers_list, files_or_directories, sys.stdout,
-            entries=entries, options_map=options_map,
-            mindate=None, ascending=args.ascending)
+            entries=entries,
+            options_map=options_map,
+            mindate=None,
+            ascending=args.ascending,
+            detect_duplicates_func=detect_duplicates_func)
     return 0
 
 

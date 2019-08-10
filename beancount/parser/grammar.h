@@ -1,8 +1,9 @@
-/* A Bison parser, made by GNU Bison 3.0.4.  */
+/* A Bison parser, made by GNU Bison 3.4.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2019 Free Software Foundation,
+   Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +30,9 @@
 
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
+
+/* Undocumented macros, especially those whose name start with YY_,
+   are private implementation details.  Do not rely on them.  */
 
 #ifndef YY_YY_BEANCOUNT_PARSER_GRAMMAR_H_INCLUDED
 # define YY_YY_BEANCOUNT_PARSER_GRAMMAR_H_INCLUDED
@@ -88,25 +92,25 @@ extern int yydebug;
     OPTION = 298,
     INCLUDE = 299,
     PLUGIN = 300,
-    BOOL = 301,
-    DATE = 302,
-    ACCOUNT = 303,
-    CURRENCY = 304,
-    STRING = 305,
-    NUMBER = 306,
-    TAG = 307,
-    LINK = 308,
-    KEY = 309,
-    NEGATIVE = 310
+    NONE = 301,
+    BOOL = 302,
+    DATE = 303,
+    ACCOUNT = 304,
+    CURRENCY = 305,
+    STRING = 306,
+    NUMBER = 307,
+    TAG = 308,
+    LINK = 309,
+    KEY = 310,
+    NEGATIVE = 311
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-
 union YYSTYPE
 {
-#line 126 "beancount/parser/grammar.y" 
+#line 126 "beancount/parser/grammar.y"
 
     char character;
     const char* string;
@@ -116,9 +120,9 @@ union YYSTYPE
         PyObject* pyobj2;
     } pairobj;
 
-#line 120 "beancount/parser/grammar.h" 
-};
+#line 124 "beancount/parser/grammar.h"
 
+};
 typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

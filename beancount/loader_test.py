@@ -12,6 +12,7 @@ from os import path
 from beancount import loader
 from beancount.parser import parser
 from beancount.utils import test_utils
+from beancount.utils import encryption_test
 
 
 TEST_INPUT = """
@@ -112,6 +113,7 @@ class TestLoadDoc(unittest.TestCase):
         """
         self.assertTrue(isinstance(entries, list))
         self.assertTrue(isinstance(errors, list))
+        self.assertFalse(errors)
         self.assertTrue(isinstance(options_map, dict))
 
     @loader.load_doc(expect_errors=True)
@@ -122,6 +124,24 @@ class TestLoadDoc(unittest.TestCase):
         self.assertTrue(isinstance(entries, list))
         self.assertTrue(isinstance(options_map, dict))
         self.assertTrue([loader.LoadError], list(map(type, errors)))
+
+    def test_load_doc_plugin_auto_pythonpath(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ledger_fn = path.join(tmpdir, 'my.beancount')
+            with open(ledger_fn, 'w') as ledger_file:
+                ledger_file.write('option "insert_pythonpath" "TRUE"\n')
+                ledger_file.write('plugin "localplugin"\n')
+
+            plugin_fn = path.join(tmpdir, 'localplugin.py')
+            with open(plugin_fn, 'w') as plugin_file:
+                plugin_file.write(textwrap.dedent("""\
+                  __plugins__ = ()
+                """))
+            entries, errors, options_map = loader.load_file(ledger_fn)
+            self.assertTrue(isinstance(entries, list))
+            self.assertTrue(isinstance(errors, list))
+            self.assertTrue(isinstance(options_map, dict))
+            self.assertFalse(errors)
 
 
 class TestLoadIncludes(unittest.TestCase):
@@ -290,6 +310,36 @@ class TestLoadIncludes(unittest.TestCase):
                          list(map(path.basename, options_map['include'])))
 
 
+class TestLoadIncludesEncrypted(encryption_test.TestEncryptedBase):
+
+    def test_include_encrypted(self):
+        with test_utils.tempdir() as tmpdir:
+            test_utils.create_temporary_files(tmpdir, {
+                'apples.beancount': """
+                  include "oranges.beancount.asc"
+                  2014-01-01 open Assets:Apples
+                """,
+                'oranges.beancount': """
+                  2014-01-02 open Assets:Oranges
+                """})
+
+            # Encrypt the oranges file and remove the unencrypted file.
+            with open(path.join(tmpdir, 'oranges.beancount')) as infile:
+                self.encrypt_as_file(infile.read(),
+                                     path.join(tmpdir, 'oranges.beancount.asc'))
+            os.remove(path.join(tmpdir, 'oranges.beancount'))
+
+            # Load the top-level file which includes the encrypted file.
+            with test_utils.environ('GNUPGHOME', self.ringdir):
+                entries, errors, options_map = loader.load_file(
+                    path.join(tmpdir, 'apples.beancount'))
+
+        self.assertFalse(errors)
+        self.assertEqual(2, len(entries))
+        self.assertRegex(entries[0].meta['filename'], 'apples.beancount')
+        self.assertRegex(entries[1].meta['filename'], 'oranges.+count.asc')
+
+
 class TestLoadCache(unittest.TestCase):
 
     def setUp(self):
@@ -369,7 +419,7 @@ class TestLoadCache(unittest.TestCase):
             # Make sure the cache was created.
             self.assertTrue(path.exists(path.join(tmp, '.apples.beancount.picklecache')))
 
-            # CHeck that it doesn't need refresh
+            # Check that it doesn't need refresh
             self.assertFalse(loader.needs_refresh(options_map))
 
             # Move the input file.

@@ -30,7 +30,8 @@ CROOT = beancount/parser
 #LEX = flex -Ca
 LEX = flex
 
-YACC = bison --report=itemset --verbose
+# Note: -Wno-deprecated silences warnings about old directives from upgrading to 3.4.
+YACC = bison -Wno-deprecated --report=itemset --verbose
 FILTERYACC = sed -e 's@/\*[ \t]yacc\.c:.*\*/@@'
 TMP=/tmp
 
@@ -149,27 +150,24 @@ debug:
 # Push to github.
 github:
 	hg bookmark -r default master
-	hg push git+ssh://git@github.com/blais/beancount
+	hg push git+ssh://git@github.com/beancount/beancount
 
 # Bake a release.
 release:
 	$(PYTHON) setup.py register sdist upload
 
 
-# Run the unittests.
-NOSE ?= nosetests3
-
 vtest vtests verbose-test verbose-tests:
-	$(NOSE) -v -s beancount
+	$(PYTHON) -m pytest -v -s beancount examples
 
 qtest qtests quiet-test quiet-tests test tests:
-	$(NOSE) beancount
+	$(PYTHON) -m pytest beancount
 
-test-failed:
-	$(NOSE) --failed beancount
+test-last test-last-failed test-failed:
+	$(PYTHON) -m pytest --last-failed beancount
 
-nakedtests:
-	PATH=/bin:/usr/bin PYTHONPATH= /usr/local/bin/$(NOSE) -x beancount
+test-naked:
+	PATH=/bin:/usr/bin PYTHONPATH= $(PYTHON) -m pytest -x beancount
 
 # Run the parser and measure its performance.
 .PHONY: check
@@ -243,7 +241,7 @@ LINT_SRCS =					\
 
 # Note: Keeping to 3.5 because 3.6 pylint raises an exception (as of 2017-01-15).
 #PYLINT = pylint
-PYLINT = python3 $(shell which pylint)
+PYLINT = python3 -m pylint
 
 pylint lint:
 	$(PYLINT) --rcfile=$(PWD)/etc/pylintrc $(LINT_SRCS)

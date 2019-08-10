@@ -1,7 +1,7 @@
 """A container for an inventory of positions.
 
 This module provides a container class that can hold positions. An inventory is
-a mapping ofpositions, where each position is keyed by
+a mapping of positions, where each position is keyed by
 
   (currency: str, cost: Cost) -> position: Position
 
@@ -26,7 +26,7 @@ __copyright__ = "Copyright (C) 2013-2017  Martin Blais"
 __license__ = "GNU GPLv2"
 
 import collections
-from collections import Iterable
+from collections.abc import Iterable
 import enum
 import re
 
@@ -250,7 +250,9 @@ class Inventory(dict):
         If the inventory is empty, return None.
         """
         if len(self) > 0:
-            assert len(self) <= 1
+            if len(self) > 1:
+                raise AssertionError("Inventory has more than one expected "
+                                     "position: {}".format(self))
             return next(iter(self))
 
     def get_currency_units(self, currency):
@@ -456,7 +458,7 @@ class Inventory(dict):
         # We need to split the comma-separated positions but ignore commas
         # occurring within a {...cost...} specification.
         position_strs = re.split(
-            '([-+]?[0-9,.]+\s+[A-Z]+\s*(?:{[^}]*})?)\s*,?\s*', string)[1::2]
+            r'([-+]?[0-9,.]+\s+[A-Z]+\s*(?:{[^}]*})?)\s*,?\s*', string)[1::2]
         for position_str in position_strs:
             new_inventory.add_position(position_from_string(position_str))
         return new_inventory

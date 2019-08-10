@@ -348,7 +348,7 @@ class DisplayFormatter:
       dcontext: A DisplayContext instance.
       precision: An enum of Precision from which it was built.
       fmtstrings: A dict of currency to pre-baked format strings for it.
-      fmtfuncs: A dict of currency to pre-baked formatting functionsfor it.
+      fmtfuncs: A dict of currency to pre-baked formatting functions for it.
     """
     def __init__(self, dcontext, precision, fmtstrings):
         self.dcontext = dcontext
@@ -373,6 +373,6 @@ class DisplayFormatter:
     __call__ = format
 
 
-# Default instance of DisplayContext to use if None is spcified.
+# Default instance of DisplayContext to use if None is specified.
 DEFAULT_DISPLAY_CONTEXT = DisplayContext()
 DEFAULT_FORMATTER = DEFAULT_DISPLAY_CONTEXT.build()

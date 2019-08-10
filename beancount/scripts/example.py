@@ -48,6 +48,11 @@ from beancount.utils import version
 from beancount import loader
 
 
+# Disable warning for format strings using **locals()
+# Can replace these with f-strings when requiring Python 3.6
+# pylint: disable=possibly-unused-variable
+
+
 # Constants.
 ONE_DAY = datetime.timedelta(days=1)
 
@@ -1268,7 +1273,7 @@ def compute_trip_dates(date_begin, date_end):
     # Length of trip.
     days_trip = (8, 22)
 
-    # Number of days to ensure no trip at the beginning and the ned.
+    # Number of days to ensure no trip at the beginning and the end.
     days_buffer = 21
 
     date_begin += datetime.timedelta(days=days_buffer)
@@ -1592,7 +1597,7 @@ def write_example_file(date_birth, date_begin, date_end, reformat, file):
     # Figure out all the years we need tax accounts for.
     years = set()
     for account_name in getters.get_accounts(income_entries):
-        match = re.match('Expenses:Taxes:Y(\d\d\d\d)', account_name)
+        match = re.match(r'Expenses:Taxes:Y(\d\d\d\d)', account_name)
         if match:
             years.add(int(match.group(1)))
 

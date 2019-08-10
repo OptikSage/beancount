@@ -75,6 +75,8 @@ __license__ = "GNU GPLv2"
 import collections
 import copy
 import enum
+from typing import Text
+import uuid
 
 from beancount.core.number import MISSING
 from beancount.core.number import ZERO
@@ -89,6 +91,11 @@ from beancount.parser import booking_method
 from beancount.core import position
 from beancount.core import inventory
 from beancount.core import interpolate
+
+
+def unique_label() -> Text:
+    "Return a globally unique label for cost entries."
+    return str(uuid.uuid4())
 
 
 # An error of disallowed self-reduction.
@@ -148,7 +155,8 @@ def _book(entries, options_map, methods):
                 # group in this block; Summary: We will need to run the
                 # reductions prior to the augmentations in order to support
                 # reductions between the postings of a single transaction.)
-                if False: ## Disabled.
+                # Disabled.
+                if False:  # pylint: disable=using-constant-test
                     if has_self_reduction(group_postings, methods):
                         errors.append(SelfReduxError(
                             entry.meta, "Self-reduction is not allowed", entry))
@@ -442,7 +450,7 @@ def replace_currencies(postings, refer_groups):
         for refer in sorted(refers, key=lambda r: r.index):
             posting = postings[refer.index]
             units = posting.units
-            if units is MISSING:
+            if units is MISSING or units is None:
                 posting = posting._replace(units=Amount(MISSING, refer.units_currency))
             else:
                 replace = False
@@ -596,8 +604,9 @@ def book_reductions(entry, group_postings, balances,
                                        entry))
                     return [], errors  # This is irreconcilable, remove these postings.
 
-                reduction_postings, ambi_errors = booking_method.handle_ambiguous_matches(
-                    entry, posting, matches, method)
+                reduction_postings, matched_postings, ambi_errors = (
+                    booking_method.handle_ambiguous_matches(entry, posting, matches,
+                                                            method))
                 if ambi_errors:
                     errors.extend(ambi_errors)
                     return [], errors
@@ -625,6 +634,14 @@ def book_reductions(entry, group_postings, balances,
                 if costspec.date is None:
                     dated_costspec = costspec._replace(date=entry.date)
                     posting = posting._replace(cost=dated_costspec)
+
+                # FIXME: Insert unique ids for trade tracking; right now this
+                # creates ambiguous matches errors (and it shouldn't).
+                # # Insert a unique label if there isn't one.
+                # if posting.cost is not None and posting.cost.label is None:
+                #     posting = posting._replace(
+                #         cost=posting.cost._replace(label=unique_label()))
+
                 booked_postings.append(posting)
 
     return booked_postings, errors
@@ -891,6 +908,8 @@ def interpolate_group(postings, balances, currency, tolerances):
         # Replace the number in the posting.
         if new_posting is not None:
             # Set meta-data on the new posting to indicate it was interpolated.
+            if new_posting.meta is None:
+                new_posting = new_posting._replace(meta={})
             new_posting.meta[interpolate.AUTOMATIC_META] = True
 
             # Convert augmenting posting costs from CostSpec to a corresponding

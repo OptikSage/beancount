@@ -9,16 +9,13 @@ The purpose of this script is
 - Join these tables
 - Output them to a CSV file.
 
-The purpose of this script is to then invoke upload-to-sheets to update a Google
-Sheets doc from which various reports to track one's portfolio can be produced,
-and updated with live market data using the =GOOGLEFINANCE() function.
+The purpose of this script is to then invoke upload-to-sheets to replace the
+contents of an existing sheet inside a Google Sheets doc from which various
+reports to track one's portfolio can be produced, and updated with live market
+data using the =GOOGLEFINANCE() function.
 
-This is the second, more straightforward version of the script (the prior one
-was called list_holdings.py and it output aggregated results; we keep it
-detailed here to keep it simpler) and is intended as a clean prototype for
-including in the scripts or reports. (In theory, this script eventually be
-replaceable with the SQL shell.)
-
+(In theory, this script eventually be replaceable with an SQL shell query; in
+practice, the shell is not quite there yet, so we maintain this script.)
 """
 __copyright__ = "Copyright (C) 2018  Martin Blais"
 __license__ = "GNU GPLv2"
@@ -252,6 +249,15 @@ def join(main_table: Table, *col_tables: Tuple[Tuple[Tuple[str], Table]]) -> Tab
     return Table(new_header, rows)
 
 
+def reorder_columns(table: Table, new_headers: List[str]) -> Table:
+    """Reorder the columns of a table to a desired new headers."""
+    assert len(table.header) == len(new_headers)
+    indexes = [table.header.index(header) for header in new_headers]
+    rows = [[row[index] for index in indexes]
+            for row in table.rows]
+    return Table(new_headers, rows)
+
+
 def write_table(table: Table, outfile: str):
     """Write a table to a CSV file."""
     with outfile:
@@ -293,11 +299,11 @@ def main():
 
     # Initialize main output currency.
     main_currency = args.currency or options_map['operating_currency'][0]
-    logging.info("Operating currency: %s", args.currency)
+    logging.info("Operating currency: %s", main_currency)
 
     # Get the map of commodities to their meta tags.
     commodities_table = get_commodities_table(
-        entries, ['export', 'assetcls', 'strategy'])
+        entries, ['export', 'assetcls', 'strategy', 'issuer'])
     if args.output_commodities is not None:
         write_table(commodities_table, args.output_commodities)
 
@@ -331,13 +337,22 @@ def main():
                         (('currency', 'cost_currency'), prices_table),
                         (('cost_currency',), rates_table))
 
+    # Reorder columns.
+    # We do this in order to avoid having to change the spreadsheet when we add new columns.
+    headers = list(joined_table.header)
+    headers.remove('issuer')
+    headers.append('issuer')
+    final_table = reorder_columns(joined_table, headers)
+
     # Filter table.
-    rows = [row for row in joined_table.rows if row[7] != 'IGNORE']
-    table = Table(joined_table.header, rows)
+    rows = [row for row in final_table.rows if row[7] != 'IGNORE']
+    table = Table(final_table.header, rows)
 
     if args.output is not None:
         table[0][0] += ' ({:%Y-%m-%d %H:%M})'.format(datetime.datetime.now())
         write_table(table, args.output)
+
+    return 0
 
 
 if __name__ == '__main__':

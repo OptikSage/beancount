@@ -12,27 +12,12 @@ automatically when an external tool isn't installed.
 __copyright__ = "Copyright (C) 2016  Martin Blais"
 __license__ = "GNU GPLv2"
 
-import csv
-import datetime
 import re
-import pprint
-import logging
 import subprocess
-import unittest
-from os import path
 
 from dateutil.parser import parse as parse_datetime
 
-from beancount.core.number import D
-from beancount.core.number import ZERO
-from beancount.core.number import MISSING
-from beancount.core import data
-from beancount.core import account
-from beancount.core import amount
-from beancount.core import position
-from beancount.core import inventory
 from beancount.ingest import importer
-from beancount.ingest import regression
 
 
 def is_pdfminer_installed():
@@ -41,7 +26,7 @@ def is_pdfminer_installed():
         returncode = subprocess.call(['pdf2txt.py', '-h'],
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE)
-    except FileNotFoundError:
+    except (FileNotFoundError, PermissionError):
         return False
     else:
         return returncode == 0
@@ -61,8 +46,7 @@ def pdf_to_text(filename):
     stdout, stderr = pipe.communicate()
     if stderr:
         raise ValueError(stderr.decode())
-    else:
-        return stdout.decode()
+    return stdout.decode()
 
 
 class Importer(importer.ImporterProtocol):
@@ -82,7 +66,7 @@ class Importer(importer.ImporterProtocol):
             return re.match('ACME Bank', text) is not None
 
     def file_name(self, file):
-        # Noramlize the name to something meaningful.
+        # Normalize the name to something meaningful.
         return 'acmebank.pdf'
 
     def file_account(self, _):
@@ -94,10 +78,3 @@ class Importer(importer.ImporterProtocol):
         match = re.search('Date: ([^\n]*)', text)
         if match:
             return parse_datetime(match.group(1)).date()
-
-
-@unittest.skipIf(not is_pdfminer_installed(), "PDFMiner2 is not installed")
-def test():
-    # Create an importer instance for running the regression tests.
-    importer = Importer("Assets:US:AcmeBank")
-    yield from regression.compare_sample_files(importer, __file__)

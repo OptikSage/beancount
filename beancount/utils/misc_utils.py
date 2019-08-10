@@ -4,13 +4,29 @@ Generic utility packages and functions.
 __copyright__ = "Copyright (C) 2014-2017  Martin Blais"
 __license__ = "GNU GPLv2"
 
+from collections import defaultdict
+from time import time
 import collections
+import contextlib
+import functools
 import io
 import re
 import sys
-from time import time
-import contextlib
-from collections import defaultdict
+import warnings
+
+
+def deprecated(message):
+    """A decorator generator to mark functions as deprecated and log a warning."""
+    def decorator(func):
+        @functools.wraps(func)
+        def new_func(*args, **kwargs):
+            warnings.warn("Call to deprecated function {}: {}".format(func.__name__,
+                                                                      message),
+                          category=DeprecationWarning,
+                          stacklevel=2)
+            return func(*args, **kwargs)
+        return new_func
+    return decorator
 
 
 @contextlib.contextmanager
@@ -253,6 +269,7 @@ def compute_unique_clean_ids(strings):
 
     return idmap
 
+
 def escape_string(string):
     """Escape quotes and backslashes in payee and narration.
 
@@ -261,7 +278,6 @@ def escape_string(string):
     Returns.
       The input string, with offending characters replaced.
     """
-
     return string.replace('\\', r'\\')\
                  .replace('"', r'\"')
 
@@ -357,11 +373,26 @@ def import_curses():
     """
     # Note: There's a recipe for getting terminal size on Windows here, without
     # curses, I should probably implement that at some point:
-    # http://stackoverflow.com/questions/263890/how-do-i-find-the-width-height-of-a-terminal-window
+    # https://stackoverflow.com/questions/263890/how-do-i-find-the-width-height-of-a-terminal-window
     # Also, consider just using 'blessings' instead, which provides this across
     # multiple platforms.
     import curses
     return curses
+
+
+def _get_screen_value(attrname, default=0):
+    """Return the width or height of the terminal that runs this program."""
+    try:
+        curses = import_curses()
+    except ImportError:
+        value = default
+    else:
+        try:
+            curses.setupterm()
+            value = curses.tigetnum(attrname)
+        except (io.UnsupportedOperation, curses.error):
+            value = default
+    return value
 
 
 def get_screen_width():
@@ -371,13 +402,7 @@ def get_screen_width():
       An integer, the number of characters the screen is wide.
       Return 0 if the terminal cannot be initialized.
     """
-    try:
-        curses = import_curses()
-        curses.setupterm()
-        columns = curses.tigetnum('cols')
-    except (io.UnsupportedOperation, ImportError):
-        columns = 0
-    return columns
+    return _get_screen_value('cols', 0)
 
 
 def get_screen_height():
@@ -387,13 +412,7 @@ def get_screen_height():
       An integer, the number of characters the screen is high.
       Return 0 if the terminal cannot be initialized.
     """
-    try:
-        curses = import_curses()
-        lines = curses.setupterm()
-        lines = curses.tigetnum('lines')
-    except (io.UnsupportedOperation, ImportError):
-        lines = 0
-    return lines
+    return _get_screen_value('lines', 0)
 
 
 class TypeComparable:

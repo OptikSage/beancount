@@ -5,8 +5,8 @@ __license__ = "GNU GPLv2"
 
 import collections
 import copy
-import os
 import re
+import sys
 import traceback
 from os import path
 from datetime import date
@@ -38,14 +38,6 @@ from beancount.parser import lexer
 from beancount.parser import options
 from beancount.core import account
 from beancount.core import data
-
-
-# FIXME: This environment variable enables temporary support for negative
-# prices. If you've updated across 2015-01-10 and you're getting a lot of
-# errors, you need to fix all the signs on your @@ total price values (they are
-# to be positive only). Just set this environment variable to disable this
-# change if you need to post-pone this.
-__allow_negative_prices__ = os.environ.get('BEANCOUNT_ALLOW_NEGATIVE_PRICES', False)
 
 
 ParserError = collections.namedtuple('ParserError', 'source message entry')
@@ -144,7 +136,12 @@ class Builder(lexer.LexBuilder):
 
         # A display context builder.
         self.dcontext = display_context.DisplayContext()
-        self.dcupdate = self.dcontext.update
+        self._dcupdate = self.dcontext.update
+
+    def dcupdate(self, number, currency):
+        """Update the display context."""
+        if isinstance(number, Decimal) and currency and currency is not MISSING:
+            self._dcupdate(number, currency)
 
     def finalize(self):
         """Finalize the parser, check for final errors and return the triple.
@@ -169,7 +166,7 @@ class Builder(lexer.LexBuilder):
                     "Unbalanced metadata key '{}'; leftover metadata '{}'").format(
                         key, ', '.join(value_list)), None))
 
-        # Weave the commas option in the DisplayContext itself, so it propagages
+        # Weave the commas option in the DisplayContext itself, so it propagates
         # everywhere it is used automatically.
         self.dcontext.set_commas(self.options['render_commas'])
 
@@ -385,7 +382,10 @@ class Builder(lexer.LexBuilder):
             if key.startswith('name_'):
                 # Update the set of valid account types.
                 self.account_regexp = valid_account_regexp(self.options)
-
+            elif key == 'insert_pythonpath':
+                # Insert the PYTHONPATH to this file when and only if you
+                # encounter this option.
+                sys.path.insert(0, path.dirname(filename))
 
     def include(self, filename, lineno, include_filename):
         """Process an include directive.
@@ -420,8 +420,7 @@ class Builder(lexer.LexBuilder):
         """
         # Update the mapping that stores the parsed precisions.
         # Note: This is relatively slow, adds about 70ms because of number.as_tuple().
-        if isinstance(number, Decimal) and currency and currency is not MISSING:
-            self.dcupdate(number, currency)
+        self.dcupdate(number, currency)
         return Amount(number, currency)
 
     def compound_amount(self, number_per, number_total, currency):
@@ -437,10 +436,8 @@ class Builder(lexer.LexBuilder):
         """
         # Update the mapping that stores the parsed precisions.
         # Note: This is relatively slow, adds about 70ms because of number.as_tuple().
-        if isinstance(number_per, Decimal):
-            self.dcupdate(number_per, currency)
-        if isinstance(number_total, Decimal):
-            self.dcupdate(number_total, currency)
+        self.dcupdate(number_per, currency)
+        self.dcupdate(number_total, currency)
 
         # Note that we are not able to reduce the value to a number per-share
         # here because we only get the number of units in the full lot spec.
@@ -525,7 +522,7 @@ class Builder(lexer.LexBuilder):
                             ("Per-unit cost may not be specified using total cost "
                              "syntax: '{}'; ignoring per-unit cost").format(compound_cost),
                             None))
-                    # Ignore per-unit numbrer.
+                    # Ignore per-unit number.
                     number_per = ZERO
                 else:
                     # There's a single number specified; interpret it as a total cost.
@@ -803,16 +800,15 @@ class Builder(lexer.LexBuilder):
         meta = new_metadata(filename, lineno)
 
         # Prices may not be negative.
-        if not __allow_negative_prices__:
-            if price and isinstance(price.number, Decimal) and price.number < ZERO:
-                self.errors.append(
-                    ParserError(meta, (
-                        "Negative prices are not allowed: {} "
-                        "(see http://furius.ca/beancount/doc/bug-negative-prices "
-                        "for workaround)"
-                    ).format(price), None))
-                # Fix it and continue.
-                price = Amount(abs(price.number), price.currency)
+        if price and isinstance(price.number, Decimal) and price.number < ZERO:
+            self.errors.append(
+                ParserError(meta, (
+                    "Negative prices are not allowed: {} "
+                    "(see http://furius.ca/beancount/doc/bug-negative-prices "
+                    "for workaround)"
+                ).format(price), None))
+            # Fix it and continue.
+            price = Amount(abs(price.number), price.currency)
 
         # If the price is specified for the entire amount, compute the effective
         # price here and forget about that detail of the input syntax.
@@ -820,10 +816,7 @@ class Builder(lexer.LexBuilder):
             if units.number == ZERO:
                 number = ZERO
             else:
-                if __allow_negative_prices__:
-                    number = price.number/units.number
-                else:
-                    number = price.number/abs(units.number)
+                number = price.number/abs(units.number)
             price = Amount(number, price.currency)
 
         # Note: Allow zero prices because we need them for round-trips for
@@ -956,7 +949,6 @@ class Builder(lexer.LexBuilder):
         """
         meta = new_metadata(filename, lineno)
 
-
         # Separate postings and key-values.
         explicit_meta = {}
         postings = []
@@ -970,8 +962,9 @@ class Builder(lexer.LexBuilder):
                 elif isinstance(posting_or_kv, TagsLinks):
                     if postings:
                         self.errors.append(ParserError(
-                            meta, "Tags or links not allowed after first Posting".format(
-                                posting_or_kv), None))
+                            meta,
+                            "Tags or links not allowed after first " +
+                            "Posting: {}".format(posting_or_kv), None))
                     else:
                         tags.update(posting_or_kv.tags)
                         links.update(posting_or_kv.links)

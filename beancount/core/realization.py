@@ -207,7 +207,7 @@ def contains(real_account, account_name):
 
 
 def realize(entries, min_accounts=None, compute_balance=True):
-    """Group entries by account, into a "tree" of realized accounts. RealAccount's
+    r"""Group entries by account, into a "tree" of realized accounts. RealAccount's
     are essentially containers for lists of postings and the final balance of
     each account, and may be non-leaf accounts (used strictly for organizing
     accounts into a hierarchy). This is then used to issue reports.
@@ -560,7 +560,7 @@ def dump(root_account):
             # For the root node, we don't want to render any prefix.
             first = cont = ''
         else:
-            # Compute the string that precedes the name directly and the one belwo
+            # Compute the string that precedes the name directly and the one below
             # that for the continuation lines.
             #  |
             #  @@@ Bank1    <----------------
